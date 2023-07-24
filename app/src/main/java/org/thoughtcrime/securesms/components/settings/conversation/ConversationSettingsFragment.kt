@@ -207,7 +207,7 @@ class ConversationSettingsFragment : DSLSettingsFragment(
   }
 
   override fun getMaterial3OnScrollHelper(toolbar: Toolbar?): Material3OnScrollHelper {
-    return object : Material3OnScrollHelper(requireActivity(), toolbar!!) {
+    return object : Material3OnScrollHelper(requireActivity(), toolbar!!, viewLifecycleOwner) {
       override val inactiveColorSet = ColorSet(
         toolbarColorRes = R.color.signal_colorBackground_0,
         statusBarColorRes = R.color.signal_colorBackground
@@ -543,16 +543,14 @@ class ConversationSettingsFragment : DSLSettingsFragment(
           }
         }
 
-        if (recipientState.identityRecord != null) {
-          clickPref(
-            title = DSLSettingsText.from(R.string.ConversationSettingsFragment__view_safety_number),
-            icon = DSLSettingsIcon.from(R.drawable.ic_safety_number_24),
-            isEnabled = !state.isDeprecatedOrUnregistered,
-            onClick = {
-              startActivity(VerifyIdentityActivity.newIntent(requireActivity(), recipientState.identityRecord))
-            }
-          )
-        }
+        clickPref(
+          title = DSLSettingsText.from(R.string.ConversationSettingsFragment__view_safety_number),
+          icon = DSLSettingsIcon.from(R.drawable.ic_safety_number_24),
+          isEnabled = !state.isDeprecatedOrUnregistered,
+          onClick = {
+            VerifyIdentityActivity.startOrShowExchangeMessagesDialog(requireActivity(), recipientState.identityRecord)
+          }
+        )
       }
 
       if (state.sharedMedia != null && state.sharedMedia.count > 0) {

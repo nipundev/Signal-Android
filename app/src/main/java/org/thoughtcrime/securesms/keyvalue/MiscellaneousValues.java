@@ -31,7 +31,6 @@ public final class MiscellaneousValues extends SignalStoreValues {
   private static final String CDS_BLOCKED_UNTIL              = "misc.cds_blocked_until";
   private static final String LAST_FOREGROUND_TIME           = "misc.last_foreground_time";
   private static final String PNI_INITIALIZED_DEVICES        = "misc.pni_initialized_devices";
-  private static final String SMS_PHASE_1_START_MS           = "misc.sms_export.phase_1_start.3";
   private static final String LINKED_DEVICES_REMINDER        = "misc.linked_devices_reminder";
   private static final String HAS_LINKED_DEVICES             = "misc.linked_devices_present";
   private static final String USERNAME_QR_CODE_COLOR         = "mis.username_qr_color_scheme";
@@ -52,7 +51,7 @@ public final class MiscellaneousValues extends SignalStoreValues {
 
   @Override
   @NonNull List<String> getKeysToIncludeInBackup() {
-    return Collections.singletonList(SMS_PHASE_1_START_MS);
+    return Collections.emptyList();
   }
 
   /**
@@ -232,22 +231,8 @@ public final class MiscellaneousValues extends SignalStoreValues {
     putBoolean(PNI_INITIALIZED_DEVICES, value);
   }
 
-  public void startSmsPhase1() {
-    if (!getStore().containsKey(SMS_PHASE_1_START_MS)) {
-      putLong(SMS_PHASE_1_START_MS, System.currentTimeMillis());
-    }
-  }
-
   public @NonNull SmsExportPhase getSmsExportPhase() {
-    long now = System.currentTimeMillis();
-    long phase1StartMs = getLong(SMS_PHASE_1_START_MS, now);
-    return SmsExportPhase.getCurrentPhase(now - phase1StartMs);
-  }
-
-  public long getSmsPhase3Start() {
-    long now = System.currentTimeMillis();
-    long phase1StartMs = getLong(SMS_PHASE_1_START_MS, now);
-    return phase1StartMs + SmsExportPhase.PHASE_3.getDuration();
+    return SmsExportPhase.getCurrentPhase();
   }
 
   public void setHasLinkedDevices(boolean value) {
