@@ -297,7 +297,7 @@ public class PushServiceSocket {
 
   private static final String REPORT_SPAM = "/v1/messages/report/%s/%s";
 
-  private static final String BACKUP_AUTH_CHECK = "/v1/backup/auth/check";
+  private static final String BACKUP_AUTH_CHECK = "/v2/backup/auth/check";
 
   private static final String CALL_LINK_CREATION_AUTH = "/v1/call-link/create-auth";
   private static final String SERVER_DELIVERED_TIMESTAMP_HEADER = "X-Signal-Timestamp";
@@ -984,6 +984,18 @@ public class PushServiceSocket {
         .subscribeOn(Schedulers.io())
         .observeOn(Schedulers.io())
         .onErrorReturn(ServiceResponse::forUnknownError);
+  }
+
+  private Single<ServiceResponse<BackupAuthCheckResponse>> createBackupAuthCheckSingle(@Nonnull String path,
+                                                                                       @Nonnull BackupAuthCheckRequest request,
+                                                                                       @Nonnull ResponseMapper<BackupAuthCheckResponse> responseMapper)
+  {
+    return Single.fromCallable(() -> {
+      try (Response response = getServiceConnection(path, "POST", jsonRequestBody(JsonUtil.toJson(request)), Collections.emptyMap(), Optional.empty(), false)) {
+        String body = response.body() != null ? readBodyString(response.body()): "";
+        return responseMapper.map(response.code(), body, response::header, false);
+      }
+    });
   }
 
   /**
