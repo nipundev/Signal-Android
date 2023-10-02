@@ -5883,6 +5883,8 @@
     <string name="CallLogFragment__no_calls">Không có cuộc gọi.</string>
     <!-- Shown during empty state -->
     <string name="CallLogFragment__get_started_by_calling_a_friend">Bắt đầu với việc gọi cho một người bạn.</string>
+    <!-- Displayed as a message in a dialog when deleting multiple items -->
+    <string name="CallLogFragment__call_links_youve_created">Các đường dẫn cuộc gọi bạn đã tạo không còn hiệu lực cho những người được bạn gửi đến.</string>
 
     <!-- New call activity -->
     <!-- Activity title in title bar -->

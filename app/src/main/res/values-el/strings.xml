@@ -6016,6 +6016,8 @@
     <string name="CallLogFragment__no_calls">Καμία κλήση.</string>
     <!-- Shown during empty state -->
     <string name="CallLogFragment__get_started_by_calling_a_friend">Ξεκίνα καλώντας κάποιο φίλο.</string>
+    <!-- Displayed as a message in a dialog when deleting multiple items -->
+    <string name="CallLogFragment__call_links_youve_created">Οι σύνδεσμοι κλήσης που δημιούργησες δεν θα λειτουργούν πλέον για τα άτομα που τους έχουν.</string>
 
     <!-- New call activity -->
     <!-- Activity title in title bar -->

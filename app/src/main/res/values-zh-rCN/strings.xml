@@ -5883,6 +5883,8 @@
     <string name="CallLogFragment__no_calls">无通话。</string>
     <!-- Shown during empty state -->
     <string name="CallLogFragment__get_started_by_calling_a_friend">呼叫朋友开始互动吧。</string>
+    <!-- Displayed as a message in a dialog when deleting multiple items -->
+    <string name="CallLogFragment__call_links_youve_created">已拥有您创建的通话链接的用户将无法重复使用此链接。</string>
 
     <!-- New call activity -->
     <!-- Activity title in title bar -->

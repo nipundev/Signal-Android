@@ -62,6 +62,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.Observer
+import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.ConversationLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -183,6 +184,8 @@ import org.thoughtcrime.securesms.conversation.ui.inlinequery.InlineQueryChanged
 import org.thoughtcrime.securesms.conversation.ui.inlinequery.InlineQueryReplacement
 import org.thoughtcrime.securesms.conversation.ui.inlinequery.InlineQueryResultsControllerV2
 import org.thoughtcrime.securesms.conversation.ui.inlinequery.InlineQueryViewModelV2
+import org.thoughtcrime.securesms.conversation.v2.computed.ConversationMessageComputeWorkers
+import org.thoughtcrime.securesms.conversation.v2.data.ConversationMessageElement
 import org.thoughtcrime.securesms.conversation.v2.groups.ConversationGroupCallViewModel
 import org.thoughtcrime.securesms.conversation.v2.groups.ConversationGroupViewModel
 import org.thoughtcrime.securesms.conversation.v2.items.ChatColorsDrawable
@@ -311,6 +314,7 @@ import org.thoughtcrime.securesms.util.getRecordQuoteType
 import org.thoughtcrime.securesms.util.hasAudio
 import org.thoughtcrime.securesms.util.hasGiftBadge
 import org.thoughtcrime.securesms.util.isValidReactionTarget
+import org.thoughtcrime.securesms.util.savedStateViewModel
 import org.thoughtcrime.securesms.util.viewModel
 import org.thoughtcrime.securesms.util.views.Stub
 import org.thoughtcrime.securesms.util.visible
@@ -402,10 +406,8 @@ class ConversationFragment :
     )
   }
 
-  private val linkPreviewViewModel: LinkPreviewViewModelV2 by viewModel {
-    LinkPreviewViewModelV2(
-      enablePlaceholder = false
-    )
+  private val linkPreviewViewModel: LinkPreviewViewModelV2 by savedStateViewModel {
+    LinkPreviewViewModelV2(it, enablePlaceholder = false)
   }
 
   private val groupCallViewModel: ConversationGroupCallViewModel by viewModel {
@@ -466,6 +468,7 @@ class ConversationFragment :
   private lateinit var conversationActivityResultContracts: ConversationActivityResultContracts
   private lateinit var scrollToPositionDelegate: ScrollToPositionDelegate
   private lateinit var adapter: ConversationAdapterV2
+  private lateinit var typingIndicatorAdapter: ConversationTypingIndicatorAdapter
   private lateinit var recyclerViewColorizer: RecyclerViewColorizer
   private lateinit var attachmentManager: AttachmentManager
   private lateinit var multiselectItemDecoration: MultiselectItemDecoration
@@ -473,7 +476,6 @@ class ConversationFragment :
   private lateinit var threadHeaderMarginDecoration: ThreadHeaderMarginDecoration
   private lateinit var conversationItemDecorations: ConversationItemDecorations
   private lateinit var optionsMenuCallback: ConversationOptionsMenuCallback
-  private lateinit var typingIndicatorDecoration: TypingIndicatorDecoration
   private lateinit var backPressedCallback: BackPressedDelegate
 
   private var animationsAllowed = false
@@ -1040,7 +1042,13 @@ class ConversationFragment :
 
     getVoiceNoteMediaController().voiceNotePlaybackState.observe(viewLifecycleOwner, inputPanel.playbackStateObserver)
 
-    val conversationUpdateTick = ConversationUpdateTick { adapter.updateTimestamps() }
+    val conversationUpdateTick = ConversationUpdateTick {
+      disposables += ConversationMessageComputeWorkers.recomputeFormattedDate(
+        requireContext(),
+        adapter.currentList.filterIsInstance<ConversationMessageElement>()
+      ).observeOn(AndroidSchedulers.mainThread()).subscribeBy { adapter.updateTimestamps() }
+    }
+
     viewLifecycleOwner.lifecycle.addObserver(conversationUpdateTick)
 
     if (args.conversationScreenType.isInPopup) {
@@ -1078,18 +1086,24 @@ class ConversationFragment :
   }
 
   private fun presentTypingIndicator() {
-    typingIndicatorDecoration = TypingIndicatorDecoration(requireContext(), binding.conversationItemRecycler)
-    binding.conversationItemRecycler.addItemDecoration(typingIndicatorDecoration)
+    typingIndicatorAdapter.registerAdapterDataObserver(object : RecyclerView.AdapterDataObserver() {
+      override fun onItemRangeInserted(positionStart: Int, itemCount: Int) {
+        if (positionStart == 0 && itemCount == 1 && layoutManager.findFirstCompletelyVisibleItemPosition() == 0) {
+          scrollToPositionDelegate.resetScrollPosition()
+        }
+      }
+    })
 
     ApplicationDependencies.getTypingStatusRepository().getTypists(args.threadId).observe(viewLifecycleOwner) {
       val recipient = viewModel.recipientSnapshot ?: return@observe
 
-      typingIndicatorDecoration.setTypists(
-        GlideApp.with(this),
-        it.typists,
-        recipient.isGroup,
-        recipient.hasWallpaper(),
-        it.isReplacedByIncomingMessage
+      typingIndicatorAdapter.setState(
+        ConversationTypingIndicatorAdapter.State(
+          typists = it.typists,
+          isGroupThread = recipient.isGroup,
+          hasWallpaper = recipient.hasWallpaper(),
+          isReplacedByIncomingMessage = it.isReplacedByIncomingMessage
+        )
       )
     }
   }
@@ -1523,6 +1537,8 @@ class ConversationFragment :
       startExpirationTimeout = viewModel::startExpirationTimeout
     )
 
+    typingIndicatorAdapter = ConversationTypingIndicatorAdapter(GlideApp.with(this))
+
     scrollToPositionDelegate = ScrollToPositionDelegate(
       recyclerView = binding.conversationItemRecycler,
       canJumpToPosition = adapter::canJumpToPosition
@@ -1533,7 +1549,7 @@ class ConversationFragment :
     recyclerViewColorizer = RecyclerViewColorizer(binding.conversationItemRecycler)
     recyclerViewColorizer.setChatColors(args.chatColors)
 
-    binding.conversationItemRecycler.adapter = adapter
+    binding.conversationItemRecycler.adapter = ConcatAdapter(typingIndicatorAdapter, adapter)
     multiselectItemDecoration = MultiselectItemDecoration(
       requireContext()
     ) { viewModel.wallpaperSnapshot }
@@ -1779,7 +1795,7 @@ class ConversationFragment :
       return
     }
 
-    if (SignalStore.uiHints().hasNotSeenTextFormattingAlert() && bodyRanges != null && bodyRanges.rangesCount > 0) {
+    if (SignalStore.uiHints().hasNotSeenTextFormattingAlert() && bodyRanges != null && bodyRanges.ranges.isNotEmpty()) {
       Dialogs.showFormattedTextDialog(requireContext()) {
         sendMessage(body, mentions, bodyRanges, messageToEdit, quote, scheduledDate, slideDeck, contacts, clearCompose, linkPreviews, preUploadResults, bypassPreSendSafetyNumberCheck, isViewOnce, afterSendComplete)
       }

@@ -6016,6 +6016,8 @@
     <string name="CallLogFragment__no_calls">Walang calls.</string>
     <!-- Shown during empty state -->
     <string name="CallLogFragment__get_started_by_calling_a_friend">Magsimula sa pamamagitan ng pagtawag sa kaibigan mo.</string>
+    <!-- Displayed as a message in a dialog when deleting multiple items -->
+    <string name="CallLogFragment__call_links_youve_created">Hindi na gagana ang call links na ginawa mo para sa mga taong meron na nito.</string>
 
     <!-- New call activity -->
     <!-- Activity title in title bar -->

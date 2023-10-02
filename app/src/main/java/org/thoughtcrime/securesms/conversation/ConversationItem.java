@@ -58,6 +58,8 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.ContextCompat;
 import androidx.lifecycle.LifecycleOwner;
 import androidx.media3.common.MediaItem;
+import androidx.recyclerview.widget.ConcatAdapter;
+import androidx.recyclerview.widget.ConversationLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -518,6 +520,8 @@ public final class ConversationItem extends RelativeLayout implements BindableCo
     if (isInEditMode()) {
       return;
     }
+
+    reactionsView.setBubbleWidth(bodyBubble.getWidth());
 
     boolean needsMeasure = false;
 
@@ -1058,10 +1062,10 @@ public final class ConversationItem extends RelativeLayout implements BindableCo
 
       if (conversationMessage.getBottomButton() != null) {
         callToActionStub.get().setVisibility(View.VISIBLE);
-        callToActionStub.get().setText(conversationMessage.getBottomButton().getLabel());
+        callToActionStub.get().setText(conversationMessage.getBottomButton().label);
         callToActionStub.get().setOnClickListener(v -> {
           if (eventListener != null) {
-            eventListener.onCallToAction(conversationMessage.getBottomButton().getAction());
+            eventListener.onCallToAction(conversationMessage.getBottomButton().action);
           }
         });
       } else if (callToActionStub.resolved()) {
@@ -2302,7 +2306,7 @@ public final class ConversationItem extends RelativeLayout implements BindableCo
 
   @Override
   public int getAdapterPosition(@NonNull RecyclerView recyclerView) {
-    return recyclerView.getChildAdapterPosition(this);
+    return recyclerView.getChildViewHolder(this).getBindingAdapterPosition();
   }
 
   @Override

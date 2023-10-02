@@ -6016,6 +6016,8 @@
     <string name="CallLogFragment__no_calls">அழைப்புகள் இல்லை.</string>
     <!-- Shown during empty state -->
     <string name="CallLogFragment__get_started_by_calling_a_friend">ஒரு நண்பருக்கு செய்தி அனுப்புவதன் மூலம் தொடங்கவும்.</string>
+    <!-- Displayed as a message in a dialog when deleting multiple items -->
+    <string name="CallLogFragment__call_links_youve_created">நீங்கள் உருவாக்கிய அழைப்பு இணைப்புகள் அவற்றை வைத்திருப்பவர்களுக்கு இனி வேலை செய்யாது.</string>
 
     <!-- New call activity -->
     <!-- Activity title in title bar -->

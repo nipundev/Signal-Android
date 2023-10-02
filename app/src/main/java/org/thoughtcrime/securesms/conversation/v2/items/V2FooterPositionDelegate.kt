@@ -7,6 +7,7 @@ package org.thoughtcrime.securesms.conversation.v2.items
 
 import android.view.View
 import android.widget.Space
+import org.signal.core.util.StringUtil
 import org.signal.core.util.dp
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.components.emoji.EmojiTextView
@@ -31,28 +32,28 @@ class V2FooterPositionDelegate private constructor(
   constructor(binding: V2ConversationItemTextOnlyBindingBridge) : this(
     binding.root,
     listOfNotNull(
-      binding.conversationItemFooterDate,
-      binding.conversationItemDeliveryStatus,
-      binding.conversationItemFooterExpiry,
-      binding.conversationItemFooterSpace
+      binding.footerDate,
+      binding.deliveryStatus,
+      binding.footerExpiry,
+      binding.footerSpace
     ),
-    binding.conversationItemBodyWrapper,
-    binding.conversationItemBody,
-    binding.conversationItemFooterSpace,
+    binding.bodyWrapper,
+    binding.body,
+    binding.footerSpace,
     null
   )
 
   constructor(binding: V2ConversationItemMediaBindingBridge) : this(
     binding.textBridge.root,
     listOfNotNull(
-      binding.textBridge.conversationItemFooterDate,
-      binding.textBridge.conversationItemDeliveryStatus,
-      binding.textBridge.conversationItemFooterExpiry,
-      binding.textBridge.conversationItemFooterSpace
+      binding.textBridge.footerDate,
+      binding.textBridge.deliveryStatus,
+      binding.textBridge.footerExpiry,
+      binding.textBridge.footerSpace
     ),
-    binding.textBridge.conversationItemBodyWrapper,
-    binding.textBridge.conversationItemBody,
-    binding.textBridge.conversationItemFooterSpace,
+    binding.textBridge.bodyWrapper,
+    binding.textBridge.body,
+    binding.textBridge.footerSpace,
     binding.thumbnailStub
   )
 
@@ -79,7 +80,7 @@ class V2FooterPositionDelegate private constructor(
       return false
     }
 
-    if (body.isJumbomoji) {
+    if (body.isJumbomoji || StringUtil.hasMixedTextDirection(body.text)) {
       displayUnderneathBody()
       return true
     }
@@ -90,7 +91,7 @@ class V2FooterPositionDelegate private constructor(
     }
 
     val availableWidth = maxWidth - lastLineWidth
-    if (body.lineCount == 1 && availableWidth > footerWidth) {
+    if (body.lineCount == 1 && availableWidth > (footerWidth + 8.dp)) {
       displayAtEndOfBody()
       return true
     }
