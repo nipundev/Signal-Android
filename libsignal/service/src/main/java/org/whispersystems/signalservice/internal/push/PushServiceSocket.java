@@ -112,6 +112,7 @@ import org.whispersystems.signalservice.internal.contacts.entities.KeyBackupRequ
 import org.whispersystems.signalservice.internal.contacts.entities.KeyBackupResponse;
 import org.whispersystems.signalservice.internal.contacts.entities.TokenResponse;
 import org.whispersystems.signalservice.internal.crypto.AttachmentDigest;
+import org.whispersystems.signalservice.internal.push.exceptions.DonationProcessorError;
 import org.whispersystems.signalservice.internal.push.exceptions.ForbiddenException;
 import org.whispersystems.signalservice.internal.push.exceptions.GroupExistsException;
 import org.whispersystems.signalservice.internal.push.exceptions.GroupMismatchedDevicesException;
@@ -277,7 +278,7 @@ public class PushServiceSocket {
 
   private static final String UPDATE_SUBSCRIPTION_LEVEL                  = "/v1/subscription/%s/level/%s/%s/%s";
   private static final String SUBSCRIPTION                               = "/v1/subscription/%s";
-  private static final String CREATE_STRIPE_SUBSCRIPTION_PAYMENT_METHOD  = "/v1/subscription/%s/create_payment_method";
+  private static final String CREATE_STRIPE_SUBSCRIPTION_PAYMENT_METHOD  = "/v1/subscription/%s/create_payment_method?type=%s";
   private static final String CREATE_PAYPAL_SUBSCRIPTION_PAYMENT_METHOD  = "/v1/subscription/%s/create_payment_method/paypal";
   private static final String DEFAULT_STRIPE_SUBSCRIPTION_PAYMENT_METHOD = "/v1/subscription/%s/default_payment_method/stripe/%s";
   private static final String DEFAULT_PAYPAL_SUBSCRIPTION_PAYMENT_METHOD = "/v1/subscription/%s/default_payment_method/braintree/%s";
@@ -287,6 +288,7 @@ public class PushServiceSocket {
   private static final String CONFIRM_PAYPAL_ONE_TIME_PAYMENT_INTENT     = "/v1/subscription/boost/paypal/confirm";
   private static final String BOOST_RECEIPT_CREDENTIALS                  = "/v1/subscription/boost/receipt_credentials";
   private static final String DONATIONS_CONFIGURATION                    = "/v1/subscription/configuration";
+  private static final String BANK_MANDATE                               = "/v1/subscription/bank_mandate/%s";
 
   private static final String VERIFICATION_SESSION_PATH = "/v1/verification/session";
   private static final String VERIFICATION_CODE_PATH    = "/v1/verification/session/%s/code";
@@ -1139,8 +1141,8 @@ public class PushServiceSocket {
     makeServiceRequest(DONATION_REDEEM_RECEIPT, "POST", payload);
   }
 
-  public StripeClientSecret createStripeOneTimePaymentIntent(String currencyCode, long amount, long level) throws IOException {
-    String payload = JsonUtil.toJson(new StripeOneTimePaymentIntentPayload(amount, currencyCode, level));
+  public StripeClientSecret createStripeOneTimePaymentIntent(String currencyCode, String paymentMethod, long amount, long level) throws IOException {
+    String payload = JsonUtil.toJson(new StripeOneTimePaymentIntentPayload(amount, currencyCode, level, paymentMethod));
     String result  = makeServiceRequestWithoutAuthentication(CREATE_STRIPE_ONE_TIME_PAYMENT_INTENT, "POST", payload);
     return JsonUtil.fromJsonResponse(result, StripeClientSecret.class);
   }
@@ -1156,7 +1158,7 @@ public class PushServiceSocket {
   public PayPalConfirmPaymentIntentResponse confirmPayPalOneTimePaymentIntent(String currency, String amount, long level, String payerId, String paymentId, String paymentToken) throws IOException {
     String payload = JsonUtil.toJson(new PayPalConfirmOneTimePaymentIntentPayload(amount, currency, level, payerId, paymentId, paymentToken));
     Log.d(TAG, payload);
-    String result  = makeServiceRequestWithoutAuthentication(CONFIRM_PAYPAL_ONE_TIME_PAYMENT_INTENT, "POST", payload);
+    String result  = makeServiceRequestWithoutAuthentication(CONFIRM_PAYPAL_ONE_TIME_PAYMENT_INTENT, "POST", payload, NO_HEADERS, new DonationResponseHandler());
     return JsonUtil.fromJsonResponse(result, PayPalConfirmPaymentIntentResponse.class);
   }
 
@@ -1196,8 +1198,19 @@ public class PushServiceSocket {
     return JsonUtil.fromJson(result, DonationsConfiguration.class);
   }
 
+  /**
+   * @param bankTransferType Valid values for bankTransferType are {SEPA_DEBIT}.
+   * @return localized bank mandate text for the given bankTransferType.
+   */
+  public BankMandate getBankMandate(Locale locale, String bankTransferType) throws IOException {
+    Map<String, String> headers = Collections.singletonMap("Accept-Language", locale.getLanguage() + "-" + locale.getCountry());
+    String              result  = makeServiceRequestWithoutAuthentication(String.format(BANK_MANDATE, bankTransferType), "GET", null, headers, NO_HANDLER);
+
+    return JsonUtil.fromJson(result, BankMandate.class);
+  }
+
   public void updateSubscriptionLevel(String subscriberId, String level, String currencyCode, String idempotencyKey) throws IOException {
-    makeServiceRequestWithoutAuthentication(String.format(UPDATE_SUBSCRIPTION_LEVEL, subscriberId, level, currencyCode, idempotencyKey), "PUT", "");
+    makeServiceRequestWithoutAuthentication(String.format(UPDATE_SUBSCRIPTION_LEVEL, subscriberId, level, currencyCode, idempotencyKey), "PUT", "", NO_HEADERS, new DonationResponseHandler());
   }
 
   public ActiveSubscription getSubscription(String subscriberId) throws IOException {
@@ -1213,8 +1226,11 @@ public class PushServiceSocket {
     makeServiceRequestWithoutAuthentication(String.format(SUBSCRIPTION, subscriberId), "DELETE", null);
   }
 
-  public StripeClientSecret createStripeSubscriptionPaymentMethod(String subscriberId) throws IOException {
-    String response = makeServiceRequestWithoutAuthentication(String.format(CREATE_STRIPE_SUBSCRIPTION_PAYMENT_METHOD, subscriberId), "POST", "");
+  /**
+   * @param type One of CARD or SEPA_DEBIT
+   */
+  public StripeClientSecret createStripeSubscriptionPaymentMethod(String subscriberId, String type) throws IOException {
+    String response = makeServiceRequestWithoutAuthentication(String.format(CREATE_STRIPE_SUBSCRIPTION_PAYMENT_METHOD, subscriberId, type), "POST", "");
     return JsonUtil.fromJson(response, StripeClientSecret.class);
   }
 
@@ -1502,6 +1518,9 @@ public class PushServiceSocket {
 
           if (listener != null) {
             listener.onAttachmentProgress(body.contentLength() + offset, totalRead);
+            if (listener.shouldCancel()) {
+              call.cancel();
+            }
           }
         }
       } else if (response.code() == 416) {
@@ -2740,6 +2759,24 @@ public class PushServiceSocket {
       throws NonSuccessfulResponseCodeException, MalformedResponseException, PushNetworkException
   {
     makeServiceRequest(String.format(REPORT_SPAM, serviceId.toString(), serverGuid), "POST", JsonUtil.toJson(new SpamTokenMessage(reportingToken)));
+  }
+
+  /**
+   * Handler for a couple donation endpoints.
+   */
+  private static class DonationResponseHandler implements ResponseCodeHandler {
+    @Override
+    public void handle(int responseCode, ResponseBody body) throws NonSuccessfulResponseCodeException, PushNetworkException {
+      if (responseCode == 440) {
+        try {
+          throw JsonUtil.fromJson(body.string(), DonationProcessorError.class);
+        } catch (IOException e) {
+          throw new NonSuccessfulResponseCodeException(440);
+        }
+      } else {
+        throw new NonSuccessfulResponseCodeException(responseCode);
+      }
+    }
   }
 
   private static class RegistrationSessionResponseHandler implements ResponseCodeHandler {
