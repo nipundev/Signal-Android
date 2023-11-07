@@ -1372,6 +1372,7 @@ class ConversationFragment :
       colorFilter = PorterDuffColorFilter(chatColors.asSingleColor(), PorterDuff.Mode.MULTIPLY)
       invalidateSelf()
     }
+    ChatColorsDrawable.setGlobalChatColors(binding.conversationItemRecycler, chatColors)
   }
 
   private fun presentScrollButtons(scrollButtonState: ConversationScrollButtonState) {
@@ -2934,7 +2935,9 @@ class ConversationFragment :
               }
 
               override fun onHide() {
-                binding.conversationItemRecycler.suppressLayout(false)
+                if (lifecycle.currentState.isAtLeast(Lifecycle.State.INITIALIZED)) {
+                  binding.conversationItemRecycler.suppressLayout(false)
+                }
                 if (selectedConversationModel.audioUri != null) {
                   getVoiceNoteMediaController().resumePlayback(selectedConversationModel.audioUri, messageRecord.getId())
                 }

@@ -17,7 +17,8 @@ import org.thoughtcrime.securesms.components.settings.app.subscription.MonthlyDo
 import org.thoughtcrime.securesms.components.settings.app.subscription.OneTimeDonationRepository
 import org.thoughtcrime.securesms.components.settings.app.subscription.boost.Boost
 import org.thoughtcrime.securesms.components.settings.app.subscription.donate.gateway.GatewayRequest
-import org.thoughtcrime.securesms.components.settings.app.subscription.manage.SubscriptionRedemptionJobWatcher
+import org.thoughtcrime.securesms.components.settings.app.subscription.manage.DonationRedemptionJobWatcher
+import org.thoughtcrime.securesms.database.model.isExpired
 import org.thoughtcrime.securesms.dependencies.ApplicationDependencies
 import org.thoughtcrime.securesms.jobmanager.JobTracker
 import org.thoughtcrime.securesms.keyvalue.SignalStore
@@ -106,7 +107,7 @@ class DonateToSignalViewModel(
   fun updateSubscription() {
     val snapshot = store.state
     if (snapshot.areFieldsEnabled) {
-      _actions.onNext(DonateToSignalAction.UpdateSubscription(createGatewayRequest(snapshot)))
+      _actions.onNext(DonateToSignalAction.UpdateSubscription(createGatewayRequest(snapshot), snapshot.isUpdateLongRunning))
     }
   }
 
@@ -207,6 +208,26 @@ class DonateToSignalViewModel(
   }
 
   private fun initializeOneTimeDonationState(oneTimeDonationRepository: OneTimeDonationRepository) {
+    val isOneTimeDonationInProgress: Observable<Boolean> = DonationRedemptionJobWatcher.watchOneTimeRedemption().map {
+      it.map { jobState ->
+        when (jobState) {
+          JobTracker.JobState.PENDING -> true
+          JobTracker.JobState.RUNNING -> true
+          else -> false
+        }
+      }.orElse(false)
+    }.distinctUntilChanged()
+
+    val isOneTimeDonationPending: Observable<Boolean> = SignalStore.donationsValues().observablePendingOneTimeDonation
+      .map { pending -> pending.filter { !it.isExpired }.isPresent }
+      .distinctUntilChanged()
+
+    oneTimeDonationDisposables += Observable
+      .combineLatest(isOneTimeDonationInProgress, isOneTimeDonationPending) { a, b -> a || b }
+      .subscribe { hasPendingOneTimeDonation ->
+        store.update { it.copy(oneTimeDonationState = it.oneTimeDonationState.copy(isOneTimeDonationPending = hasPendingOneTimeDonation)) }
+      }
+
     oneTimeDonationDisposables += oneTimeDonationRepository.getBoostBadge().subscribeBy(
       onSuccess = { badge ->
         store.update { it.copy(oneTimeDonationState = it.oneTimeDonationState.copy(badge = badge)) }
@@ -274,7 +295,7 @@ class DonateToSignalViewModel(
   }
 
   private fun monitorLevelUpdateProcessing() {
-    val isTransactionJobInProgress: Observable<Boolean> = SubscriptionRedemptionJobWatcher.watch().map {
+    val isTransactionJobInProgress: Observable<Boolean> = DonationRedemptionJobWatcher.watchSubscriptionRedemption().map {
       it.map { jobState ->
         when (jobState) {
           JobTracker.JobState.PENDING -> true

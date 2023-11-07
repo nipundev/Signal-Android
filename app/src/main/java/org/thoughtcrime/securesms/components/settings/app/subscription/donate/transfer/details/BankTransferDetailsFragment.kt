@@ -5,6 +5,8 @@
 
 package org.thoughtcrime.securesms.components.settings.app.subscription.donate.transfer.details
 
+import android.os.Bundle
+import android.view.View
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.defaultMinSize
@@ -29,7 +31,6 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -38,6 +39,9 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.os.bundleOf
+import androidx.fragment.app.setFragmentResult
+import androidx.fragment.app.setFragmentResultListener
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
@@ -46,14 +50,21 @@ import org.signal.core.ui.Buttons
 import org.signal.core.ui.Scaffolds
 import org.signal.core.ui.Texts
 import org.signal.core.ui.theme.SignalTheme
+import org.signal.core.util.getParcelableCompat
 import org.thoughtcrime.securesms.R
+import org.thoughtcrime.securesms.components.TemporaryScreenshotSecurity
 import org.thoughtcrime.securesms.components.settings.app.subscription.DonationPaymentComponent
 import org.thoughtcrime.securesms.components.settings.app.subscription.donate.DonateToSignalType
+import org.thoughtcrime.securesms.components.settings.app.subscription.donate.DonationCheckoutDelegate
 import org.thoughtcrime.securesms.components.settings.app.subscription.donate.DonationProcessorAction
+import org.thoughtcrime.securesms.components.settings.app.subscription.donate.DonationProcessorActionResult
+import org.thoughtcrime.securesms.components.settings.app.subscription.donate.gateway.GatewayRequest
+import org.thoughtcrime.securesms.components.settings.app.subscription.donate.stripe.StripePaymentInProgressFragment
 import org.thoughtcrime.securesms.components.settings.app.subscription.donate.stripe.StripePaymentInProgressViewModel
+import org.thoughtcrime.securesms.components.settings.app.subscription.donate.transfer.BankTransferRequestKeys
+import org.thoughtcrime.securesms.components.settings.app.subscription.errors.DonationErrorSource
 import org.thoughtcrime.securesms.compose.ComposeFragment
 import org.thoughtcrime.securesms.payments.FiatMoneyUtil
-import org.thoughtcrime.securesms.util.CommunicationActions
 import org.thoughtcrime.securesms.util.SpanUtil
 import org.thoughtcrime.securesms.util.fragments.requireListener
 import org.thoughtcrime.securesms.util.navigation.safeNavigate
@@ -61,7 +72,7 @@ import org.thoughtcrime.securesms.util.navigation.safeNavigate
 /**
  * Collects SEPA Debit bank transfer details from the user to proceed with donation.
  */
-class BankTransferDetailsFragment : ComposeFragment() {
+class BankTransferDetailsFragment : ComposeFragment(), DonationCheckoutDelegate.ErrorHandlerCallback {
 
   private val args: BankTransferDetailsFragmentArgs by navArgs()
   private val viewModel: BankTransferDetailsViewModel by viewModels()
@@ -72,6 +83,26 @@ class BankTransferDetailsFragment : ComposeFragment() {
       StripePaymentInProgressViewModel.Factory(requireListener<DonationPaymentComponent>().stripeRepository)
     }
   )
+
+  override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    TemporaryScreenshotSecurity.bindToViewLifecycleOwner(this)
+
+    val errorSource: DonationErrorSource = when (args.request.donateToSignalType) {
+      DonateToSignalType.ONE_TIME -> DonationErrorSource.ONE_TIME
+      DonateToSignalType.MONTHLY -> DonationErrorSource.MONTHLY
+      DonateToSignalType.GIFT -> DonationErrorSource.GIFT
+    }
+
+    DonationCheckoutDelegate.ErrorHandler().attach(this, this, args.request.uiSessionKey, errorSource)
+
+    setFragmentResultListener(StripePaymentInProgressFragment.REQUEST_KEY) { _, bundle ->
+      val result: DonationProcessorActionResult = bundle.getParcelableCompat(StripePaymentInProgressFragment.REQUEST_KEY, DonationProcessorActionResult::class.java)!!
+      if (result.status == DonationProcessorActionResult.Status.SUCCESS) {
+        findNavController().popBackStack(R.id.donateToSignalFragment, false)
+        setFragmentResult(BankTransferRequestKeys.REQUEST_KEY, bundle)
+      }
+    }
+  }
 
   @Composable
   override fun FragmentContent() {
@@ -97,7 +128,8 @@ class BankTransferDetailsFragment : ComposeFragment() {
       onNameChanged = viewModel::onNameChanged,
       onIBANChanged = viewModel::onIBANChanged,
       onEmailChanged = viewModel::onEmailChanged,
-      onFindAccountNumbersClicked = this::onFindAccountNumbersClicked,
+      setDisplayFindAccountInfoSheet = viewModel::setDisplayFindAccountInfoSheet,
+      onLearnMoreClick = this::onLearnMoreClick,
       onDonateClick = this::onDonateClick,
       onIBANFocusChanged = viewModel::onIBANFocusChanged,
       donateLabel = donateLabel
@@ -108,8 +140,10 @@ class BankTransferDetailsFragment : ComposeFragment() {
     findNavController().popBackStack()
   }
 
-  private fun onFindAccountNumbersClicked() {
-    // TODO [sepa] -- FindAccountNumbersBottomSheet
+  private fun onLearnMoreClick() {
+    findNavController().safeNavigate(
+      BankTransferDetailsFragmentDirections.actionBankTransferDetailsFragmentToYourInformationIsPrivateBottomSheet()
+    )
   }
 
   private fun onDonateClick() {
@@ -121,6 +155,15 @@ class BankTransferDetailsFragment : ComposeFragment() {
       )
     )
   }
+
+  override fun onUserCancelledPaymentFlow() = Unit
+
+  override fun navigateToDonationPending(gatewayRequest: GatewayRequest) {
+    findNavController().popBackStack()
+    findNavController().popBackStack()
+
+    setFragmentResult(BankTransferRequestKeys.PENDING_KEY, bundleOf(BankTransferRequestKeys.PENDING_KEY to gatewayRequest))
+  }
 }
 
 @Preview
@@ -129,13 +172,15 @@ private fun BankTransferDetailsContentPreview() {
   SignalTheme {
     BankTransferDetailsContent(
       state = BankTransferDetailsState(
-        name = "Miles Morales"
+        name = "Miles Morales",
+        displayFindAccountInfoSheet = true
       ),
       onNavigationClick = {},
       onNameChanged = {},
       onIBANChanged = {},
       onEmailChanged = {},
-      onFindAccountNumbersClicked = {},
+      setDisplayFindAccountInfoSheet = {},
+      onLearnMoreClick = {},
       onDonateClick = {},
       onIBANFocusChanged = {},
       donateLabel = "Donate $5/month"
@@ -150,7 +195,8 @@ private fun BankTransferDetailsContent(
   onNameChanged: (String) -> Unit,
   onIBANChanged: (String) -> Unit,
   onEmailChanged: (String) -> Unit,
-  onFindAccountNumbersClicked: () -> Unit,
+  setDisplayFindAccountInfoSheet: (Boolean) -> Unit,
+  onLearnMoreClick: () -> Unit,
   onDonateClick: () -> Unit,
   onIBANFocusChanged: (Boolean) -> Unit,
   donateLabel: String
@@ -178,14 +224,13 @@ private fun BankTransferDetailsContent(
         item {
           val learnMore = stringResource(id = R.string.BankTransferDetailsFragment__learn_more)
           val fullString = stringResource(id = R.string.BankTransferDetailsFragment__enter_your_bank_details, learnMore)
-          val context = LocalContext.current
 
           Texts.LinkifiedText(
-            textWithUrlSpans = SpanUtil.urlSubsequence(fullString, learnMore, stringResource(id = R.string.donate_url)), // TODO [alex] -- final URL
+            textWithUrlSpans = SpanUtil.urlSubsequence(fullString, learnMore, stringResource(id = R.string.donate_faq_url)),
             onUrlClick = {
-              CommunicationActions.openBrowserLink(context, it)
+              onLearnMoreClick()
             },
-            style = MaterialTheme.typography.bodyLarge.copy(
+            style = MaterialTheme.typography.bodyMedium.copy(
               color = MaterialTheme.colorScheme.onSurfaceVariant
             ),
             modifier = Modifier.padding(vertical = 12.dp)
@@ -211,11 +256,11 @@ private fun BankTransferDetailsContent(
               if (state.ibanValidity.isError) {
                 Text(
                   text = when (state.ibanValidity) {
-                    IBANValidator.Validity.TOO_SHORT -> stringResource(id = R.string.BankTransferDetailsFragment__iban_nubmer_is_too_short)
-                    IBANValidator.Validity.TOO_LONG -> stringResource(id = R.string.BankTransferDetailsFragment__iban_nubmer_is_too_long)
+                    IBANValidator.Validity.TOO_SHORT -> stringResource(id = R.string.BankTransferDetailsFragment__iban_is_too_short)
+                    IBANValidator.Validity.TOO_LONG -> stringResource(id = R.string.BankTransferDetailsFragment__iban_is_too_long)
                     IBANValidator.Validity.INVALID_COUNTRY -> stringResource(id = R.string.BankTransferDetailsFragment__iban_country_code_is_not_supported)
-                    IBANValidator.Validity.INVALID_CHARACTERS -> stringResource(id = R.string.BankTransferDetailsFragment__invalid_iban_nubmer)
-                    IBANValidator.Validity.INVALID_MOD_97 -> stringResource(id = R.string.BankTransferDetailsFragment__invalid_iban_nubmer)
+                    IBANValidator.Validity.INVALID_CHARACTERS -> stringResource(id = R.string.BankTransferDetailsFragment__invalid_iban)
+                    IBANValidator.Validity.INVALID_MOD_97 -> stringResource(id = R.string.BankTransferDetailsFragment__invalid_iban)
                     else -> error("Unexpected error.")
                   }
                 )
@@ -276,9 +321,9 @@ private fun BankTransferDetailsContent(
             modifier = Modifier.fillMaxWidth()
           ) {
             TextButton(
-              onClick = onFindAccountNumbersClicked
+              onClick = { setDisplayFindAccountInfoSheet(true) }
             ) {
-              Text(text = stringResource(id = R.string.BankTransferDetailsFragment__find_account_numbers))
+              Text(text = stringResource(id = R.string.BankTransferDetailsFragment__find_account_info))
             }
           }
         }
@@ -292,6 +337,10 @@ private fun BankTransferDetailsContent(
           .padding(bottom = 16.dp)
       ) {
         Text(text = donateLabel)
+      }
+
+      if (state.displayFindAccountInfoSheet) {
+        FindAccountInfoSheet { setDisplayFindAccountInfoSheet(false) }
       }
 
       LaunchedEffect(Unit) {

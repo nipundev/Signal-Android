@@ -14,6 +14,10 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.signal.core.util.AppUtil
 import org.signal.core.util.concurrent.SignalExecutors
 import org.signal.core.util.concurrent.SimpleTask
+import org.signal.core.util.logging.Log
+import org.signal.core.util.readToList
+import org.signal.core.util.requireLong
+import org.signal.core.util.requireString
 import org.signal.ringrtc.CallManager
 import org.thoughtcrime.securesms.BuildConfig
 import org.thoughtcrime.securesms.R
@@ -21,10 +25,13 @@ import org.thoughtcrime.securesms.components.settings.DSLConfiguration
 import org.thoughtcrime.securesms.components.settings.DSLSettingsFragment
 import org.thoughtcrime.securesms.components.settings.DSLSettingsText
 import org.thoughtcrime.securesms.components.settings.configure
+import org.thoughtcrime.securesms.database.JobDatabase
 import org.thoughtcrime.securesms.database.LocalMetricsDatabase
 import org.thoughtcrime.securesms.database.LogDatabase
 import org.thoughtcrime.securesms.database.MegaphoneDatabase
+import org.thoughtcrime.securesms.database.OneTimePreKeyTable
 import org.thoughtcrime.securesms.database.SignalDatabase
+import org.thoughtcrime.securesms.database.model.databaseprotos.TerminalDonationQueue
 import org.thoughtcrime.securesms.dependencies.ApplicationDependencies
 import org.thoughtcrime.securesms.jobmanager.JobTracker
 import org.thoughtcrime.securesms.jobs.DownloadLatestEmojiDataJob
@@ -52,6 +59,10 @@ import kotlin.math.max
 import kotlin.time.Duration.Companion.seconds
 
 class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__internal_preferences) {
+
+  companion object {
+    private val TAG = Log.tag(InternalSettingsFragment::class.java)
+  }
 
   private lateinit var viewModel: InternalSettingsViewModel
 
@@ -162,9 +173,61 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
       )
 
       clickPref(
+        title = DSLSettingsText.from("Clear all logs"),
+        onClick = {
+          SimpleTask.run({
+            LogDatabase.getInstance(requireActivity().application).logs.clearAll()
+          }) {
+            Toast.makeText(requireContext(), "Cleared all logs", Toast.LENGTH_SHORT).show()
+          }
+        }
+      )
+
+      clickPref(
         title = DSLSettingsText.from("Clear keep longer logs"),
         onClick = {
           clearKeepLongerLogs()
+        }
+      )
+
+      clickPref(
+        title = DSLSettingsText.from("Clear all crashes"),
+        onClick = {
+          SimpleTask.run({
+            LogDatabase.getInstance(requireActivity().application).crashes.clear()
+          }) {
+            Toast.makeText(requireContext(), "Cleared crashes", Toast.LENGTH_SHORT).show()
+          }
+        }
+      )
+
+      clickPref(
+        title = DSLSettingsText.from("Clear all ANRs"),
+        onClick = {
+          SimpleTask.run({
+            LogDatabase.getInstance(requireActivity().application).anrs.clear()
+          }) {
+            Toast.makeText(requireContext(), "Cleared ANRs", Toast.LENGTH_SHORT).show()
+          }
+        }
+      )
+
+      clickPref(
+        title = DSLSettingsText.from("Log dump PreKey ServiceId-KeyIds"),
+        onClick = {
+          logPreKeyIds()
+        }
+      )
+
+      clickPref(
+        title = DSLSettingsText.from("Retry all jobs now"),
+        summary = DSLSettingsText.from("Clear backoff intervals, app will restart"),
+        onClick = {
+          SimpleTask.run({
+            JobDatabase.getInstance(ApplicationDependencies.getApplication()).debugResetBackoffInterval()
+          }) {
+            AppUtil.restart(requireContext())
+          }
         }
       )
 
@@ -459,6 +522,29 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
         )
       }
 
+      if (state.hasPendingOneTimeDonation) {
+        clickPref(
+          title = DSLSettingsText.from("Clear pending one-time donation."),
+          onClick = {
+            SignalStore.donationsValues().setPendingOneTimeDonation(null)
+          }
+        )
+      } else {
+        clickPref(
+          title = DSLSettingsText.from("Set pending one-time donation."),
+          onClick = {
+            findNavController().safeNavigate(InternalSettingsFragmentDirections.actionInternalSettingsFragmentToOneTimeDonationConfigurationFragment())
+          }
+        )
+      }
+
+      clickPref(
+        title = DSLSettingsText.from("Enqueue terminal donation"),
+        onClick = {
+          findNavController().safeNavigate(InternalSettingsFragmentDirections.actionInternalSettingsFragmentToTerminalDonationConfigurationFragment())
+        }
+      )
+
       dividerPref()
 
       sectionHeaderPref(DSLSettingsText.from("Release channel"))
@@ -725,7 +811,12 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
   }
 
   private fun enqueueSubscriptionRedemption() {
-    SubscriptionReceiptRequestResponseJob.createSubscriptionContinuationJobChain(-1L).enqueue()
+    SubscriptionReceiptRequestResponseJob.createSubscriptionContinuationJobChain(
+      -1L,
+      TerminalDonationQueue.TerminalDonation(
+        level = 1000
+      )
+    ).enqueue()
   }
 
   private fun enqueueSubscriptionKeepAlive() {
@@ -771,6 +862,21 @@ class InternalSettingsFragment : DSLSettingsFragment(R.string.preferences__inter
       LogDatabase.getInstance(requireActivity().application).logs.clearKeepLonger()
     }) {
       Toast.makeText(requireContext(), "Cleared keep longer logs", Toast.LENGTH_SHORT).show()
+    }
+  }
+
+  private fun logPreKeyIds() {
+    SimpleTask.run({
+      val oneTimePreKeys = SignalDatabase.rawDatabase
+        .query("SELECT * FROM ${OneTimePreKeyTable.TABLE_NAME}")
+        .readToList { c ->
+          c.requireString(OneTimePreKeyTable.ACCOUNT_ID) to c.requireLong(OneTimePreKeyTable.KEY_ID)
+        }
+        .joinToString()
+
+      Log.i(TAG, "One-Time Prekeys\n$oneTimePreKeys")
+    }) {
+      Toast.makeText(requireContext(), "Dumped to logs", Toast.LENGTH_SHORT).show()
     }
   }
 }

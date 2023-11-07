@@ -60,7 +60,7 @@ import org.thoughtcrime.securesms.recipients.RecipientId;
 import org.thoughtcrime.securesms.recipients.RecipientUtil;
 import org.thoughtcrime.securesms.transport.RetryLaterException;
 import org.thoughtcrime.securesms.transport.UndeliverableMessageException;
-import org.thoughtcrime.securesms.util.Base64;
+import org.signal.core.util.Base64;
 import org.thoughtcrime.securesms.util.BitmapDecodingException;
 import org.thoughtcrime.securesms.util.FeatureFlags;
 import org.thoughtcrime.securesms.util.ImageCompressionUtil;
@@ -242,16 +242,9 @@ public abstract class PushSendJob extends SendJob {
     return new HashSet<>(Stream.of(attachments).map(a -> {
                                                  AttachmentUploadJob attachmentUploadJob = new AttachmentUploadJob(((DatabaseAttachment) a).getAttachmentId());
 
-                                                 if (message.isGroup()) {
-                                                   jobManager.startChain(AttachmentCompressionJob.fromAttachment((DatabaseAttachment) a, false, -1))
-                                                             .then(attachmentUploadJob)
-                                                             .enqueue();
-                                                 } else {
-                                                   jobManager.startChain(AttachmentCompressionJob.fromAttachment((DatabaseAttachment) a, false, -1))
-                                                             .then(new ResumableUploadSpecJob())
-                                                             .then(attachmentUploadJob)
-                                                             .enqueue();
-                                                 }
+                                                 jobManager.startChain(AttachmentCompressionJob.fromAttachment((DatabaseAttachment) a, false, -1))
+                                                           .then(attachmentUploadJob)
+                                                           .enqueue();
 
                                                  return attachmentUploadJob.getId();
                                                })
