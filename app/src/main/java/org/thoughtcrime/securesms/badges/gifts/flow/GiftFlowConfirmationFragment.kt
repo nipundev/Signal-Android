@@ -14,6 +14,7 @@ import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.subjects.PublishSubject
 import org.signal.core.util.concurrent.LifecycleDisposable
 import org.signal.core.util.logging.Log
+import org.signal.core.util.money.FiatMoney
 import org.thoughtcrime.securesms.MainActivity
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.components.InputAwareLayout
@@ -286,9 +287,9 @@ class GiftFlowConfirmationFragment :
 
   override fun onProcessorActionProcessed() = Unit
 
-  override fun onUserCancelledPaymentFlow() {
-    findNavController().popBackStack(R.id.giftFlowConfirmationFragment, false)
-  }
+  override fun showSepaEuroMaximumDialog(sepaEuroMaximum: FiatMoney) = error("Unsupported operation")
+
+  override fun onUserLaunchedAnExternalApplication() = Unit
 
   override fun navigateToDonationPending(gatewayRequest: GatewayRequest) = error("Unsupported operation")
 }

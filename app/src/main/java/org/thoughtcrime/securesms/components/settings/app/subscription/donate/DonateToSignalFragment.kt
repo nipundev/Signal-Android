@@ -320,12 +320,16 @@ class DonateToSignalFragment :
     val message = if (state.donateToSignalType == DonateToSignalType.ONE_TIME) {
       if (state.oneTimeDonationState.isOneTimeDonationLongRunning) {
         R.string.DonateToSignalFragment__bank_transfers_usually_take_1_business_day_to_process_onetime
+      } else if (state.oneTimeDonationState.isNonVerifiedIdeal) {
+        R.string.DonateToSignalFragment__your_ideal_payment_is_still_processing
       } else {
         R.string.DonateToSignalFragment__your_payment_is_still_being_processed_onetime
       }
     } else {
       if (state.monthlyDonationState.activeSubscription?.paymentMethod == ActiveSubscription.PAYMENT_METHOD_SEPA_DEBIT) {
         R.string.DonateToSignalFragment__bank_transfers_usually_take_1_business_day_to_process_monthly
+      } else if (state.monthlyDonationState.nonVerifiedMonthlyDonation != null) {
+        R.string.DonateToSignalFragment__your_ideal_payment_is_still_processing
       } else {
         R.string.DonateToSignalFragment__your_payment_is_still_being_processed_monthly
       }
@@ -466,9 +470,16 @@ class DonateToSignalFragment :
     viewModel.refreshActiveSubscription()
   }
 
-  override fun onUserCancelledPaymentFlow() {
-    findNavController().popBackStack(R.id.donateToSignalFragment, false)
+  override fun showSepaEuroMaximumDialog(sepaEuroMaximum: FiatMoney) {
+    val max = FiatMoneyUtil.format(resources, sepaEuroMaximum, FiatMoneyUtil.formatOptions().trimZerosAfterDecimal())
+    MaterialAlertDialogBuilder(requireContext())
+      .setTitle(R.string.DonateToSignal__donation_amount_too_high)
+      .setMessage(getString(R.string.DonateToSignalFragment__you_can_send_up_to_s_via_bank_transfer, max))
+      .setPositiveButton(android.R.string.ok, null)
+      .show()
   }
+
+  override fun onUserLaunchedAnExternalApplication() = Unit
 
   override fun navigateToDonationPending(gatewayRequest: GatewayRequest) {
     findNavController().safeNavigate(DonateToSignalFragmentDirections.actionDonateToSignalFragmentToDonationPendingBottomSheet(gatewayRequest))
