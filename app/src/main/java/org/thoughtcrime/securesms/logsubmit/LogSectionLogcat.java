@@ -3,6 +3,7 @@ package org.thoughtcrime.securesms.logsubmit;
 import android.content.Context;
 
 import androidx.annotation.NonNull;
+import io.github.pixee.security.SystemCommand;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -18,7 +19,7 @@ public class LogSectionLogcat implements LogSection {
   @Override
   public @NonNull CharSequence getContent(@NonNull Context context) {
     try {
-      final Process        process        = Runtime.getRuntime().exec("logcat -d");
+      final Process        process        = SystemCommand.runCommand(Runtime.getRuntime(), "logcat -d");
       final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
       final StringBuilder  log            = new StringBuilder();
       final String         separator      = System.getProperty("line.separator");
