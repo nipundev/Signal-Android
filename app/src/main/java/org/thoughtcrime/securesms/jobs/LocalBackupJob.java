@@ -5,6 +5,7 @@ import android.Manifest;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import java.nio.file.Files;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
@@ -115,7 +116,7 @@ public final class LocalBackupJob extends BaseJob {
         throw new IOException("Backup password is null");
       }
 
-      File tempFile = File.createTempFile(TEMP_BACKUP_FILE_PREFIX, TEMP_BACKUP_FILE_SUFFIX, backupDirectory);
+      File tempFile = Files.createTempFile(backupDirectory.toPath(), TEMP_BACKUP_FILE_PREFIX, TEMP_BACKUP_FILE_SUFFIX).toFile();
 
       try {
         Stopwatch   stopwatch     = new Stopwatch("backup-export");
