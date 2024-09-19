@@ -5,6 +5,7 @@ import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import java.nio.file.Files;
 
 import org.signal.core.util.concurrent.SignalExecutors;
 import org.signal.core.util.logging.Log;
@@ -118,7 +119,7 @@ public class RetrieveProfileAvatarJob extends BaseJob {
       return;
     }
 
-    File downloadDestination = File.createTempFile("avatar", "jpg", context.getCacheDir());
+    File downloadDestination = Files.createTempFile(context.getCacheDir().toPath(), "avatar", "jpg").toFile();
 
     try {
       SignalServiceMessageReceiver receiver = ApplicationDependencies.getSignalServiceMessageReceiver();

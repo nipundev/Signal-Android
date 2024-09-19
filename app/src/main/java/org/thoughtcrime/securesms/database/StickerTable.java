@@ -8,6 +8,7 @@ import android.util.Pair;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import java.nio.file.Files;
 
 import org.greenrobot.eventbus.EventBus;
 import org.signal.core.util.StreamUtil;
@@ -341,7 +342,7 @@ public class StickerTable extends DatabaseTable {
 
   private FileInfo saveStickerImage(@NonNull InputStream inputStream) throws IOException {
     File                       partsDirectory = context.getDir(DIRECTORY, Context.MODE_PRIVATE);
-    File                       file           = File.createTempFile("sticker", ".mms", partsDirectory);
+    File                       file           = Files.createTempFile(partsDirectory.toPath(), "sticker", ".mms").toFile();
     Pair<byte[], OutputStream> out            = ModernEncryptingPartOutputStream.createFor(attachmentSecret, file, false);
     long                       length         = StreamUtil.copy(inputStream, out.second);
 

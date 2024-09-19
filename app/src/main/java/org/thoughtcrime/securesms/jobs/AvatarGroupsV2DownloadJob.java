@@ -4,6 +4,7 @@ import android.content.Context;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import java.nio.file.Files;
 
 import org.signal.core.util.StreamUtil;
 import org.signal.core.util.logging.Log;
@@ -112,7 +113,7 @@ public final class AvatarGroupsV2DownloadJob extends BaseJob {
     }
 
     GroupSecretParams groupSecretParams = GroupSecretParams.deriveFromMasterKey(groupMasterKey);
-    File              attachment        = File.createTempFile("avatar", "gv2", context.getCacheDir());
+    File              attachment        = Files.createTempFile(context.getCacheDir().toPath(), "avatar", "gv2").toFile();
     attachment.deleteOnExit();
 
     SignalServiceMessageReceiver receiver      = ApplicationDependencies.getSignalServiceMessageReceiver();
