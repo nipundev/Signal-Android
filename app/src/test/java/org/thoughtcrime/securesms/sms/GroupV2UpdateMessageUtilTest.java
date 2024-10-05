@@ -1,6 +1,7 @@
 package org.thoughtcrime.securesms.sms;
 
 import androidx.annotation.NonNull;
+import java.security.SecureRandom;
 
 import org.junit.Test;
 import org.signal.storageservice.protos.groups.local.DecryptedGroupChange;
@@ -137,7 +138,7 @@ public class GroupV2UpdateMessageUtilTest {
 
   private @NonNull byte[] randomBytes() {
     byte[] bytes = new byte[32];
-    new Random().nextBytes(bytes);
+    new SecureRandom().nextBytes(bytes);
     return bytes;
   }
 }
