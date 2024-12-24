@@ -2,6 +2,7 @@ package org.thoughtcrime.securesms.jobs;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import java.nio.file.Files;
 
 import org.signal.core.util.logging.Log;
 import org.signal.libsignal.protocol.InvalidMessageException;
@@ -81,7 +82,7 @@ public final class AvatarGroupsV1DownloadJob extends BaseJob {
           Log.i(TAG, "Downloading group avatar with digest: " + Hex.toString(digest.get()));
         }
 
-        attachment = File.createTempFile("avatar", "tmp", context.getCacheDir());
+        attachment = Files.createTempFile(context.getCacheDir().toPath(), "avatar", "tmp").toFile();
         attachment.deleteOnExit();
 
         SignalServiceMessageReceiver   receiver    = ApplicationDependencies.getSignalServiceMessageReceiver();
