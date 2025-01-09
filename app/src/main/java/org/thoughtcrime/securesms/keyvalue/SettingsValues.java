@@ -8,6 +8,7 @@ import android.text.TextUtils;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.lifecycle.LiveData;
+import java.security.SecureRandom;
 
 import org.signal.core.util.concurrent.SignalExecutors;
 import org.signal.core.util.logging.Log;
@@ -91,7 +92,7 @@ public final class SettingsValues extends SignalStoreValues {
     }
     if (!store.containsKey(BACKUPS_SCHEDULE_HOUR)) {
       // Initialize backup time to a 5min interval between 1-5am
-      setBackupSchedule(new Random().nextInt(5) + 1, new Random().nextInt(12) * 5);
+      setBackupSchedule(new SecureRandom().nextInt(5) + 1, new SecureRandom().nextInt(12) * 5);
     }
   }
 
