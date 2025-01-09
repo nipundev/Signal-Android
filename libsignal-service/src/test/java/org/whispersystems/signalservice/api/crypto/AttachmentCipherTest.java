@@ -1,5 +1,6 @@
 package org.whispersystems.signalservice.api.crypto;
 
+import java.security.SecureRandom;
 import org.conscrypt.Conscrypt;
 import org.junit.Test;
 import org.signal.libsignal.protocol.InvalidMessageException;
@@ -119,7 +120,7 @@ public final class AttachmentCipherTest {
       byte[]        key            = Util.getSecretBytes(64);
       byte[]        plaintextInput = new byte[1000000];
 
-      new Random().nextBytes(plaintextInput);
+      new SecureRandom().nextBytes(plaintextInput);
 
       EncryptResult encryptResult  = encryptData(plaintextInput, key, true);
       byte[]        badDigest      = Util.getSecretBytes(encryptResult.incrementalDigest.length);

@@ -1,6 +1,7 @@
 package org.thoughtcrime.securesms.database;
 
 import android.app.Application;
+import java.security.SecureRandom;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -106,7 +107,7 @@ public class MentionUtilTest_updateBodyAndMentionsWithPlaceholders {
     }
 
     Builder mention(String name) {
-      Mention input = new Mention(RecipientId.from(new Random().nextLong()), bodyBuilder.length(), name.length() + 1);
+      Mention input = new Mention(RecipientId.from(new SecureRandom().nextLong()), bodyBuilder.length(), name.length() + 1);
       bodyBuilder.append(MENTION_STARTER).append(name);
       mentions.add(input);
 
