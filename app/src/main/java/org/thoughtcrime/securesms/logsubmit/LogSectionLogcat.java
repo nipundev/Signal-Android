@@ -3,6 +3,7 @@ package org.thoughtcrime.securesms.logsubmit;
 import android.content.Context;
 
 import androidx.annotation.NonNull;
+import io.github.pixee.security.BoundedLineReader;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -24,7 +25,7 @@ public class LogSectionLogcat implements LogSection {
       final String         separator      = System.getProperty("line.separator");
 
       String line;
-      while ((line = bufferedReader.readLine()) != null) {
+      while ((line = BoundedLineReader.readLine(bufferedReader, 5_000_000)) != null) {
         log.append(line);
         log.append(separator);
       }
