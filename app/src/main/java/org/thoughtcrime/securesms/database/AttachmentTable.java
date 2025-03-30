@@ -34,6 +34,7 @@ import androidx.annotation.WorkerThread;
 import com.bumptech.glide.Glide;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.nio.file.Files;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -1176,12 +1177,12 @@ public class AttachmentTable extends DatabaseTable {
 
   private File newTransferFile() throws IOException {
     File partsDirectory = context.getDir(DIRECTORY, Context.MODE_PRIVATE);
-    return PartFileProtector.protect(() -> File.createTempFile("transfer", ".mms", partsDirectory));
+    return PartFileProtector.protect(() -> Files.createTempFile(partsDirectory.toPath(), "transfer", ".mms").toFile());
   }
 
   public static File newFile(Context context) throws IOException {
     File partsDirectory = context.getDir(DIRECTORY, Context.MODE_PRIVATE);
-    return PartFileProtector.protect(() -> File.createTempFile("part", ".mms", partsDirectory));
+    return PartFileProtector.protect(() -> Files.createTempFile(partsDirectory.toPath(), "part", ".mms").toFile());
   }
 
   /**

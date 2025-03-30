@@ -10,6 +10,7 @@ import android.util.Pair;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
+import java.nio.file.Files;
 
 import net.zetetic.database.sqlcipher.SQLiteDatabase;
 
@@ -220,7 +221,7 @@ public class FullBackupImporter extends FullBackupBase {
       throws IOException
   {
     File stickerDirectory = context.getDir(StickerTable.DIRECTORY, Context.MODE_PRIVATE);
-    File dataFile         = File.createTempFile("sticker", ".mms", stickerDirectory);
+    File dataFile         = Files.createTempFile(stickerDirectory.toPath(), "sticker", ".mms").toFile();
 
     Pair<byte[], OutputStream> output = ModernEncryptingPartOutputStream.createFor(attachmentSecret, dataFile, false);
 

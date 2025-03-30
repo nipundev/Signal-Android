@@ -1,5 +1,6 @@
 package org.whispersystems.signalservice.api.crypto;
 
+import java.nio.file.Files;
 import org.conscrypt.Conscrypt;
 import org.junit.Test;
 import org.signal.libsignal.protocol.InvalidMessageException;
@@ -326,7 +327,7 @@ public final class AttachmentCipherTest {
   }
 
   private static File writeToFile(byte[] data) throws IOException {
-    File         file         = File.createTempFile("temp", ".data");
+    File         file         = Files.createTempFile("temp", ".data").toFile();
     OutputStream outputStream = new FileOutputStream(file);
 
     outputStream.write(data);
