@@ -4,6 +4,7 @@ package org.thoughtcrime.securesms.service;
 import android.content.Context;
 
 import androidx.annotation.NonNull;
+import java.security.SecureRandom;
 
 import org.thoughtcrime.securesms.jobs.LocalBackupJob;
 import org.thoughtcrime.securesms.keyvalue.SettingsValues;
@@ -50,7 +51,7 @@ public class LocalBackupListener extends PersistentAlarmManagerListener {
     int           minute = SignalStore.settings().getBackupMinute();
     LocalDateTime next   = now.withHour(hour).withMinute(minute).withSecond(0);
 
-    int jitter = (new Random().nextInt(BACKUP_JITTER_WINDOW_SECONDS)) - (BACKUP_JITTER_WINDOW_SECONDS / 2);
+    int jitter = (new SecureRandom().nextInt(BACKUP_JITTER_WINDOW_SECONDS)) - (BACKUP_JITTER_WINDOW_SECONDS / 2);
 
     next.plusSeconds(jitter);
 

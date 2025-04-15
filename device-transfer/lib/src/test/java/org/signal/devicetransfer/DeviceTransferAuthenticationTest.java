@@ -1,6 +1,7 @@
 package org.signal.devicetransfer;
 
 import androidx.annotation.NonNull;
+import java.security.SecureRandom;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -83,7 +84,7 @@ public class DeviceTransferAuthenticationTest {
 
   private @NonNull byte[] randomBytes() {
     byte[] bytes = new byte[32];
-    new Random().nextBytes(bytes);
+    new SecureRandom().nextBytes(bytes);
     return bytes;
   }
 }
