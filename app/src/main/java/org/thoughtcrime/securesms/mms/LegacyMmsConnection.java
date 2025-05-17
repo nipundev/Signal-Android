@@ -26,6 +26,8 @@ import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
+import io.github.pixee.security.HostValidator;
+import io.github.pixee.security.Urls;
 
 import org.apache.http.Header;
 import org.apache.http.auth.AuthScope;
@@ -170,7 +172,7 @@ public abstract class LegacyMmsConnection {
                                         .setMaxRedirects(20)
                                         .build();
 
-    URL                 mmsc          = new URL(apn.getMmsc());
+    URL                 mmsc          = Urls.create(apn.getMmsc(), Urls.HTTP_PROTOCOLS, HostValidator.DENY_COMMON_INFRASTRUCTURE_TARGETS);
     CredentialsProvider credsProvider = new BasicCredentialsProvider();
 
     if (apn.hasAuthentication()) {
