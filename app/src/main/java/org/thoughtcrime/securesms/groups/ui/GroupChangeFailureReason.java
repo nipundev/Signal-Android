@@ -26,7 +26,9 @@ public enum GroupChangeFailureReason {
     if (e instanceof IOException)                         return GroupChangeFailureReason.NETWORK;
     if (e instanceof GroupNotAMemberException)            return GroupChangeFailureReason.NOT_A_MEMBER;
     if (e instanceof GroupChangeBusyException)            return GroupChangeFailureReason.BUSY;
-    if (e instanceof GroupInsufficientRightsException)    return GroupChangeFailureReason.NO_RIGHTS;
+    if (e instanceof GroupInsufficientRightsException)    {
+        return GroupChangeFailureReason.NO_RIGHTS;
+    }
                                                           return GroupChangeFailureReason.OTHER;
   }
 }
