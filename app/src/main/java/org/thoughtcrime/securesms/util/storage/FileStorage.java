@@ -4,6 +4,7 @@ import android.content.Context;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.WorkerThread;
+import java.nio.file.Files;
 
 import org.signal.core.util.StreamUtil;
 import org.thoughtcrime.securesms.crypto.AttachmentSecret;
@@ -37,7 +38,7 @@ public final class FileStorage {
       throws IOException
   {
     File directory = context.getDir(directoryName, Context.MODE_PRIVATE);
-    File file      = File.createTempFile(fileNameBase, "." + extension, directory);
+    File file      = Files.createTempFile(directory.toPath(), fileNameBase, "." + extension).toFile();
 
     StreamUtil.copy(inputStream, getOutputStream(context, file));
 
